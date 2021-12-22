@@ -1,0 +1,273 @@
+-- Gui to Lua
+-- Version: 3.2
+
+-- Instances:
+
+local AdminPanelSetup = Instance.new("Folder")
+local ServerBannedPlayers = Instance.new("Folder")
+
+--Properties:
+
+AdminPanelSetup.Name = "Admin Panel Setup"
+AdminPanelSetup.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+ServerBannedPlayers.Name = "ServerBannedPlayers"
+ServerBannedPlayers.Parent = game.StarterGui.Admin Panel Setup.AdminServerScript
+
+-- Scripts:
+
+local function QKOQ_fake_script() -- AdminPanelSetup.INSTRUCTIONS 
+	local script = Instance.new('Script', AdminPanelSetup)
+
+	--- The instructions behind this script is pretty simple, so here they are!
+	
+	--- Inside the "Admin Panel Setup" Folder there are 5 products. One being this script,
+	--- the instructions. Second one being the Admin Event & AdminGui, The next being the
+	--- AdminServerScript and the last being the GuiCloneHandler.
+	
+	--- This system is a pretty basic system, with 4 main commands, however more are always
+	--- able to be added to your specification. However, if the script is modified in any way,
+	--- I will no longer be available to support you if the script breaks.
+	
+	--- So, first things first. "AdminEvent" and "AdminGui" belong in ReplicatedStorage.
+	--- "AdminServerScript" belongs in ServerScriptService.
+	--- "GuiCloneHandler" belongs in StarterGui
+	
+	--- If done properly, the script should make the AdminGui pop up on your screen when
+	--- running the command to open the GUI.
+	
+	--- Inside of the AdminServerScript it provides more advanced tutorial to each thing
+	--- that you need to edit.
+	
+	--- To open the panel, type "Cmds"
+	
+	--- To check if a user is banned, type "IsBan Player" (replace player with the usersname)
+	
+	--- To unban a player, type "Unban Player" (replace player with the username)
+end
+coroutine.wrap(QKOQ_fake_script)()
+local function AMOCMHA_fake_script() -- AdminPanelSetup.AdminServerScript 
+	local script = Instance.new('Script', AdminPanelSetup)
+
+	local Admins = {1234567890} --- Change this to snyone's user ID.
+	
+	local Group = 1234567890 --- Change this to your group ID.
+	
+	local GroupRank = 255 --- Change this to your group rank.
+	
+	local DataStoreService = game:GetService("DataStoreService")
+	local BanList = DataStoreService:GetDataStore("BanList")
+	
+	local WarningText = "Warning, cease actions now." -- You can change this to anything.
+	
+	local Cache = {}
+	
+	local GetUserId = function(Name)
+		
+		if Cache[Name] then
+			return Cache[Name]
+		end
+		
+		local Player = game.Players:FindFirstChild(Name)
+		if Player then
+			Cache[Name] = Player.UserId
+			return Player.UserId
+		end
+		
+		local Id
+		pcall(function()
+			Id = game.Players:GetUserIdFromNameAsync(Name)
+		end)
+		Cache[Name] = Id
+		return Id
+		
+	end
+	
+	local ParseAdmin = function(Player) 
+		
+		for _, Id in pairs(Admins) do	
+			if Player.UserId == Id then	
+				return true		
+			end	
+		end
+		
+		if Group then	
+			if GroupRank then	
+				if Player:GetRankInGroup(Group) > GroupRank then
+					return true
+					
+				end	
+			else
+				if Player:IsInGroup(Group) then		
+					return true	
+				end	
+			end	
+		end
+		
+	end
+	
+	local ParseBanned = function(Name)
+		
+		local Id = GetUserId(Name)
+		
+		for _, Object in pairs(script.ServerBannedPlayers:GetChildren()) do
+			if Object.Value == Name then
+				return "ServerBanned"
+			end
+		end
+		
+		local success, Banned = pcall(function()
+			return BanList:GetAsync(Id)
+		end)
+		
+		if success and Banned then
+			return "GlobalBanned"
+		end
+		
+		return "NotBanned"
+		
+	end
+	
+	local ParseChat = function(Chat, Player)
+		
+		local lChat = string.lower(Chat)
+		
+		if not ParseAdmin(Player) then
+			return
+		end
+		
+		if lChat == "Cmds" then -- Prefix to open the panel.
+			
+			game.ReplicatedStorage.AdminEvent:FireClient(Player, "AdminGui")
+			
+		end
+		
+		if string.sub(lChat, 1, 8) == "IsBan" then -- Prefix to check if a player is banned.
+			
+			local Username = string.sub(Chat, 10, string.len(Chat))
+			
+			local Banned = ParseBanned(Username)
+				
+			if Banned == "ServerBanned" then
+				game.ReplicatedStorage.AdminEvent:FireClient(Player, "ChatMessage", {Text = Username.." is serverbanned.", Color = Color3.fromRGB(226, 36, 26)})
+			elseif Banned == "GlobalBanned" then
+				game.ReplicatedStorage.AdminEvent:FireClient(Player, "ChatMessage", {Text = Username.." is globalbanned.", Color = Color3.fromRGB(226, 36, 26)})
+			elseif Banned == "NotBanned" then
+				game.ReplicatedStorage.AdminEvent:FireClient(Player, "ChatMessage", {Text = Username.." is not banned.", Color = Color3.fromRGB(226, 36, 26)})
+			end
+				
+		end
+			
+		if string.sub(lChat, 1, 5) == "Unban" then -- Prefix to unban a player.
+			
+			local Username = string.sub(Chat, 7, string.len(Chat))
+			
+			local Banned = ParseBanned(Username)
+				
+			if Banned == "ServerBanned" then
+				for _, Object in pairs(script.ServerBannedPlayers:GetChildren()) do
+					if string.lower(Object.Value) == string.lower(Username) then
+						Object:Destroy()
+					end
+				end
+				game.ReplicatedStorage.AdminEvent:FireClient(Player, "ChatMessage", {Text = Username.." has been unserverbanned.", Color = Color3.fromRGB(226, 36, 26)})
+			elseif Banned == "GlobalBanned" then
+				local success, Banned = pcall(function()
+					return BanList:SetAsync(game.Players:GetUserIdFromNameAsync(Username), false)
+				end)
+				
+				if success then
+					game.ReplicatedStorage.AdminEvent:FireClient(Player, "ChatMessage", {Text = Username.." has been unglobalbanned.", Color = Color3.fromRGB(226, 36, 26)})
+				else
+					game.ReplicatedStorage.AdminEvent:FireClient(Player, "ChatMessage", {Text = "Unbanning operation failed.", Color = Color3.fromRGB(226, 36, 26)})
+				end
+			end
+				
+			
+		end
+		
+	end
+	
+	game.ReplicatedStorage.AdminEvent.OnServerEvent:Connect(function(Player, AdminAction, Target)
+		
+		if ParseAdmin(Player) then
+			
+			if ParseAdmin(Target) then
+				game.ReplicatedStorage.AdminEvent:FireClient(Player, "ChatMessage", {Text = "You cannot moderate other moderators.", Color = Color3.fromRGB(226, 36, 26)})
+				return
+			end
+			
+			if AdminAction == "Kick" then
+				Target:Kick("You have been kicked by an administrator.")
+			elseif AdminAction == "Warn" then
+				game.ReplicatedStorage.AdminEvent:FireClient(Target, "ChatMessage", {Text = WarningText, Color = Color3.fromRGB(226, 36, 26)})
+			elseif AdminAction == "ServerBan" then
+				Target:Kick("You have been banned from this server by an administrator.")
+				for _, Object in pairs(script.ServerBannedPlayers:GetChildren()) do
+					if Object.Value == Target.Name then
+						return
+					end
+				end
+				local ServerBanValue = Instance.new("StringValue")
+				ServerBanValue.Name = "ServerBannedUserName"
+				ServerBanValue.Value = Target.Name
+				ServerBanValue.Parent = script.ServerBannedPlayers
+			elseif AdminAction == "GlobalBan" then
+				Target:Kick("You have been banned from this game by an administrator.")
+				local success, Banned = pcall(function()
+					return BanList:SetAsync(Target.UserId, true)
+				end)
+				
+				if success then
+					game.ReplicatedStorage.AdminEvent:FireClient(Player, "ChatMessage", {Text = Target.Name.." has been globalbanned.", Color = Color3.fromRGB(226, 36, 26)})
+				else
+					game.ReplicatedStorage.AdminEvent:FireClient(Player, "ChatMessage", {Text = "Unbanning operation failed.", Color = Color3.fromRGB(226, 36, 26)})
+				end
+			end
+			
+		end
+		
+	end)
+	
+	game.Players.PlayerAdded:Connect(function(Player)
+		
+		local Banned = ParseBanned(Player.Name)
+		
+		if Banned == "ServerBanned" then
+			Player:Kick("You have been banned from this server.")
+		elseif Banned == "GlobalBanned" then
+			Player:Kick("You have been banned from this game.")
+		end
+		
+		Player.Chatted:Connect(function(Chat)
+			ParseChat(Chat, Player)
+		end)
+		
+	end)
+		
+end
+coroutine.wrap(AMOCMHA_fake_script)()
+local function EMAAUA_fake_script() -- AdminPanelSetup.GuiCloneHandler 
+	local script = Instance.new('LocalScript', AdminPanelSetup)
+
+	
+	game.ReplicatedStorage.AdminEvent.OnClientEvent:Connect(function(Gui, Data)
+		
+		if Gui == "AdminGui" then
+			
+			local Gui = game.ReplicatedStorage.AdminGui:Clone()
+			
+			Gui.Parent = game.Players.LocalPlayer.PlayerGui
+			
+		elseif Gui == "ChatMessage" then
+			wait()
+			game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage",{
+				Text = Data.Text,
+				Color = Data.Color,
+			})
+		end
+		
+	end)
+	
+end
+coroutine.wrap(EMAAUA_fake_script)()
